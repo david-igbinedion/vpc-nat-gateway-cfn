@@ -1,0 +1,239 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Template for 3-AZ VPC with public, private subnets and NAT gateways
+
+Resources:
+  theVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 10.163.0.0/16
+      EnableDnsSupport: true
+      EnableDnsHostnames: true
+      Tags:
+        - Key: Name
+          Value: alpha-prod
+
+  theigw:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: alpha-prod-igw
+  AttachGateway:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref theVPC
+      InternetGatewayId: !Ref theigw
+
+  subnetApub:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-1a
+      VpcId: !Ref theVPC
+      CidrBlock: 10.163.1.0/24
+      Tags:
+        - Key: Name
+          Value: public-a-alpha-prod
+
+  subnetBpub:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-1b
+      VpcId: !Ref theVPC
+      CidrBlock: 10.163.2.0/24
+      Tags:
+        - Key: Name
+          Value: public-b-alpha-prod
+
+  subnetCpub:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-1c
+      VpcId: !Ref theVPC
+      CidrBlock: 10.163.3.0/24
+      Tags:
+        - Key: Name
+          Value: public-c-alpha-prod
+
+  publicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref theVPC
+      Tags:
+        - Key: Name
+          Value: alpha-prod-pub-rt
+
+  defaultRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref publicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref theigw
+  routeTableAssocA:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetApub
+      RouteTableId: !Ref publicRouteTable
+  routeTableAssocB:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetBpub
+      RouteTableId: !Ref publicRouteTable
+  routeTableAssocforC:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetCpub
+      RouteTableId: !Ref publicRouteTable
+
+  subnetApriv:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-1a
+      VpcId: !Ref theVPC
+      CidrBlock: 10.163.11.0/24
+      Tags:
+        - Key: Name
+          Value: private-a-alpha-prod
+
+  subnetBpriv:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-1b
+      VpcId: !Ref theVPC
+      CidrBlock: 10.163.12.0/24
+      Tags:
+        - Key: Name
+          Value: private-b-alpha-prod
+
+  subnetCpriv:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone: eu-west-1c
+      VpcId: !Ref theVPC
+      CidrBlock: 10.163.13.0/24
+      Tags:
+        - Key: Name
+          Value: private-c-alpha-prod
+
+  NATGateway:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt ElasticIPAddress.AllocationId
+      SubnetId: !Ref subnetApub
+
+  NATGateway2:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt ElasticIPAddress2.AllocationId
+      SubnetId: !Ref subnetBpub
+
+  NATGateway3:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId: !GetAtt ElasticIPAddress3.AllocationId
+      SubnetId: !Ref subnetCpub        
+
+  ElasticIPAddress:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: VPC 
+
+  ElasticIPAddress2:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: VPC  
+
+  ElasticIPAddress3:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: VPC
+
+  PrivateRoute1:            # Private route table can access web via NAT (created below)
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref privateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      # Route traffic through the NAT Gateway:
+      NatGatewayId: !Ref NATGateway
+
+  PrivateRoute2:            # Private route table can access web via NAT (created below)
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref privateRouteTable2
+      DestinationCidrBlock: 0.0.0.0/0
+      # Route traffic through the NAT Gateway:
+      NatGatewayId: !Ref NATGateway2
+
+  PrivateRoute3:            # Private route table can access web via NAT (created below)
+    Type: AWS::EC2::Route
+    Properties:
+      RouteTableId: !Ref privateRouteTable3
+      DestinationCidrBlock: 0.0.0.0/0
+      # Route traffic through the NAT Gateway:
+      NatGatewayId: !Ref NATGateway3        
+
+  privateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref theVPC
+      Tags:
+        - Key: Name
+          Value: alpha-prod-priv-a-rt  
+
+  privateRouteTable2:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref theVPC
+      Tags:
+        - Key: Name
+          Value: alpha-prod-priv-b-rt 
+
+  privateRouteTable3:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref theVPC
+      Tags:
+        - Key: Name
+          Value: alpha-prod-priv-c-rt                     
+
+  routeTableAssocApriv:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetApriv
+      RouteTableId: !Ref privateRouteTable
+  routeTableAssocBpriv:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetBpriv
+      RouteTableId: !Ref privateRouteTable2
+  routeTableAssocforCpriv:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref subnetCpriv
+      RouteTableId: !Ref privateRouteTable3
+
+
+Outputs:
+  vpcid:
+    Description: id of the vpc created by this stack
+    Value: !Ref theVPC
+    Export: 
+      Name: !Sub "${AWS::StackName}-vpcid"
+  subnetApub:
+    Description: subnet id
+    Value: !Ref subnetApub
+  subnetBpub:
+    Description: subnet id
+    Value: !Ref subnetBpub
+  subnetCpub:
+    Description: subnet id
+    Value: !Ref subnetCpub
+  subnetApriv:
+    Description: subnet id
+    Value: !Ref subnetApriv
+  subnetBpriv:
+    Description: subnet id
+    Value: !Ref subnetBpriv
+  subnetCpriv:
+    Description: subnet id
+    Value: !Ref subnetCpriv
+    
